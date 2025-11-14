@@ -2,12 +2,12 @@ import logging
 import sqlite3
 import random
 import string
-import os
+import asyncio
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 from flask import Flask
-from threading import Thread
+import threading
 
 # ⚠️ ЗАМЕНИТЕ НА ВАШ TELEGRAM ID
 ALLOWED_USER_IDS = [313642812]  # Ваш Telegram ID
@@ -28,8 +28,12 @@ app = Flask(__name__)
 def home():
     return "🤖 Telegram Bot is running!"
 
+@app.route('/health')
+def health():
+    return "OK"
+
 def run_flask():
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=10000)
 
 def check_access(user_id):
     """Проверка доступа пользователя"""
@@ -349,13 +353,9 @@ async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_back_keyboard("main")
     )
 
-def main():
+def run_bot():
+    """Запуск Telegram бота"""
     init_db()
-    
-    # Запускаем Flask в отдельном потоке
-    flask_thread = Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
     
     application = Application.builder().token(BOT_TOKEN).build()
     
@@ -364,8 +364,20 @@ def main():
     application.add_handler(CallbackQueryHandler(button_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    print("🤖 Чистый бот запущен!")
+    print("🤖 Telegram бот запущен!")
     application.run_polling()
+
+def main():
+    """Главная функция - запускает и веб-сервер и бота"""
+    
+    # Запускаем Flask в отдельном потоке
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+    print("🌐 Веб-сервер запущен на порту 10000")
+    
+    # Запускаем бота в основном потоке
+    run_bot()
 
 if __name__ == "__main__":
     main()
