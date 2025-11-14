@@ -16,7 +16,7 @@ logging.basicConfig(
 DB_NAME = "promo_codes.db"
 
 # ⚠️ ЗАМЕНИТЕ НА ВАШ ТОКЕН!
-BOT_TOKEN = "ВАШ_НАСТОЯЩИЙ_ТОКЕН"
+BOT_TOKEN = "8253391508:AAHRmV5q-zj24oSpbD-jTKRfsMk5DJ-BuU0"
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
