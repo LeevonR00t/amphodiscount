@@ -175,6 +175,71 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data.startswith("discount_"):
         await discount_handler(update, context)
 
+@private_only
+async def add_manual_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Добавить промо-код вручную (/addcode CODE DISCOUNT)"""
+    if len(context.args) == 2:
+        code = context.args[0].upper().strip()
+        try:
+            discount = int(context.args[1])
+            
+            if add_promo_code(code, discount):
+                await update.message.reply_text(
+                    f"✅ Промо-код добавлен!\n"
+                    f"🎫 Код: <code>{code}</code>\n"
+                    f"💰 Скидка: {discount}%",
+                    parse_mode='HTML'
+                )
+            else:
+                await update.message.reply_text(
+                    f"❌ Промо-код <code>{code}</code> уже существует!",
+                    parse_mode='HTML'
+                )
+        except ValueError:
+            await update.message.reply_text("❌ Скидка должна быть числом!")
+    else:
+        await update.message.reply_text(
+            "Использование: /addcode <код> <скидка>\nПример: /addcode MANUAL25 25"
+        )
+
+@private_only
+async def delete_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Удалить промо-код (/deletecode CODE)"""
+    if context.args:
+        code = context.args[0].upper().strip()
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM promo_codes WHERE code = ?', (code,))
+        deleted = cursor.rowcount
+        conn.commit()
+        conn.close()
+        
+        if deleted > 0:
+            await update.message.reply_text(f"✅ Промо-код <code>{code}</code> удален!", parse_mode='HTML')
+        else:
+            await update.message.reply_text(f"❌ Промо-код <code>{code}</code> не найден!", parse_mode='HTML')
+    else:
+        await update.message.reply_text("Использование: /deletecode <код>")
+
+@private_only
+async def list_codes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать все промо-коды (/listcodes)"""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute('SELECT code, discount, is_used, created_at FROM promo_codes ORDER BY created_at DESC')
+    codes = cursor.fetchall()
+    conn.close()
+    
+    if codes:
+        text = "📋 Все промо-коды:\n\n"
+        for code, discount, is_used, created_at in codes:
+            status = "❌ Использован" if is_used else "✅ Активен"
+            text += f"• <code>{code}</code> - {discount}% - {status}\n"
+        
+        await update.message.reply_text(text, parse_mode='HTML')
+    else:
+        await update.message.reply_text("📭 Нет созданных промо-кодов")
+
 @private_only 
 async def discount_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик выбора скидки"""
@@ -363,6 +428,9 @@ def run_bot():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_handler(CommandHandler("addcode", add_manual_code))
+    application.add_handler(CommandHandler("deletecode", delete_code))
+    application.add_handler(CommandHandler("listcodes", list_codes))
     
     print("🤖 Telegram бот запущен!")
     application.run_polling()
